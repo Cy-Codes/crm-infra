@@ -1,0 +1,95 @@
+# ==============================================================================
+# OS Files
+# ==============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# ==============================================================================
+# IDEs and Editors
+# ==============================================================================
+# JetBrains (IntelliJ IDEA, PyCharm, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# ==============================================================================
+# Environment & Secrets (Never commit secrets!)
+# ==============================================================================
+# .env holds LOCALSTACK_AUTH_TOKEN and any real cloud keys; .env.example is the
+# documented contract and stays tracked.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+credentials.ini
+
+# ==============================================================================
+# LocalStack Emulator State
+# ==============================================================================
+# Bind-mounted by compose.yaml (./.localstack/aws, ./.localstack/azure)
+.localstack/
+localstack_recordings/
+
+# ==============================================================================
+# Terraform
+# ==============================================================================
+# Provider plugins and module caches (recreated by `terraform init`)
+.terraform/
+.terraformrc
+terraform.rc
+
+# State and plans can contain database passwords and other secrets
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfplan.json
+crash.log
+crash.*.log
+
+# Personal variable files and overrides. The committed permutations/*.tfvars
+# are shared configuration and are intentionally NOT ignored.
+terraform.tfvars
+terraform.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# .terraform.lock.hcl is intentionally tracked so provider versions and
+# checksums are pinned across machines (HashiCorp recommendation).
+
+# ==============================================================================
+# Docker & Containers
+# ==============================================================================
+docker-compose.override.yml
+compose.override.yaml
+compose.override.yml
+
+# ==============================================================================
+# Logs, Temp, and Agent Scratch
+# ==============================================================================
+*.log
+*.tmp
+*.bak
+*.swp
+*~
+scratch/

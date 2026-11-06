@@ -1,0 +1,168 @@
+# ============================================================================
+# CRM Reference Architecture - Local Runtime & Cloud Emulators
+#
+# Profiles (combine freely):
+#   local  -> both databases + both APIs as plain containers (no cloud)
+#   aws    -> LocalStack for AWS   (gateway :4566, service ports 4510-4559)
+#   azure  -> LocalStack for Azure (gateway :4567, service ports 4610-4659)
+#
+#   docker compose --env-file .env -f compose.yaml --profile aws --profile azure up -d --wait
+#
+# All values are read from crm-infra/.env (copy crm-infra/.env.example).
+# ============================================================================
+name: crm-reference-architecture
+
+# Service port ranges are fixed so both emulators can run side by side
+# (LocalStack treats EXTERNAL_SERVICE_PORTS_END as exclusive).
+x-localstack-common: &localstack-common
+  restart: unless-stopped
+  networks:
+    - cloud-emulation
+
+networks:
+  cloud-emulation:
+    name: ${DOCKER_NETWORK_NAME:-crm-cloud-emulation}
+
+volumes:
+  crm-local-pgdata:
+
+services:
+  # --------------------------------------------------------------------------
+  # Cloud emulators
+  # --------------------------------------------------------------------------
+  localstack-aws:
+    <<: *localstack-common
+    profiles: [aws]
+    image: localstack/localstack:${LOCALSTACK_AWS_IMAGE_TAG:-latest}
+    container_name: crm-localstack-aws
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${LOCALSTACK_AWS_PORT:-4566}:${LOCALSTACK_AWS_PORT:-4566}"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:4510-4559:4510-4559"
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
+      GATEWAY_LISTEN: 0.0.0.0:${LOCALSTACK_AWS_PORT:-4566}
+      LOCALSTACK_HOST: localhost.localstack.cloud:${LOCALSTACK_AWS_PORT:-4566}
+      EXTERNAL_SERVICE_PORTS_START: 4510
+      EXTERNAL_SERVICE_PORTS_END: 4560
+      MAIN_DOCKER_NETWORK: ${DOCKER_NETWORK_NAME:-crm-cloud-emulation}
+      MSSQL_ACCEPT_EULA: ${MSSQL_ACCEPT_EULA:-Y}
+      PERSISTENCE: ${LOCALSTACK_PERSISTENCE:-0}
+      DEBUG: ${LOCALSTACK_DEBUG:-0}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.localstack/aws:/var/lib/localstack
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${LOCALSTACK_AWS_PORT:-4566}/_localstack/health >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  localstack-azure:
+    <<: *localstack-common
+    profiles: [azure]
+    image: localstack/localstack-azure:${LOCALSTACK_AZURE_IMAGE_TAG:-latest}
+    container_name: crm-localstack-azure
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${LOCALSTACK_AZURE_PORT:-4567}:${LOCALSTACK_AZURE_PORT:-4567}"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:4610-4659:4610-4659"
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
+      GATEWAY_LISTEN: 0.0.0.0:${LOCALSTACK_AZURE_PORT:-4567}
+      LOCALSTACK_HOST: localhost.localstack.cloud:${LOCALSTACK_AZURE_PORT:-4567}
+      EXTERNAL_SERVICE_PORTS_START: 4610
+      EXTERNAL_SERVICE_PORTS_END: 4660
+      MAIN_DOCKER_NETWORK: ${DOCKER_NETWORK_NAME:-crm-cloud-emulation}
+      MSSQL_ACCEPT_EULA: ${MSSQL_ACCEPT_EULA:-Y}
+      PERSISTENCE: ${LOCALSTACK_PERSISTENCE:-0}
+      DEBUG: ${LOCALSTACK_DEBUG:-0}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./.localstack/azure:/var/lib/localstack
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:${LOCALSTACK_AZURE_PORT:-4567}/_localstack/health >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  # --------------------------------------------------------------------------
+  # Local (no cloud) baseline: the exact images the clouds run
+  # --------------------------------------------------------------------------
+  crm-database-ms:
+    profiles: [local]
+    build:
+      context: ../CRMDatabaseMS
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: ${MSSQL_ACCEPT_EULA:-Y}
+      SA_PASSWORD: ${LOCAL_MSSQL_SA_PASSWORD:-CrmDev2026!Secure#Pass}
+      MSSQL_SA_PASSWORD: ${LOCAL_MSSQL_SA_PASSWORD:-CrmDev2026!Secure#Pass}
+      DB_NAME: CRMDatabaseMS
+      SEED_DATA: ${SEED_DATA:-standard}
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${LOCAL_MSSQL_PORT:-11433}:1433"
+    networks:
+      - cloud-emulation
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$SA_PASSWORD\" -C -d CRMDatabaseMS -Q 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  crm-database-pg:
+    profiles: [local]
+    build:
+      context: ../CRMDatabasePG
+    environment:
+      POSTGRES_DB: CRMDatabase
+      POSTGRES_USER: ${LOCAL_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${LOCAL_POSTGRES_PASSWORD:-postgres}
+      SEED_DATA: ${SEED_DATA:-standard}
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${LOCAL_POSTGRES_PORT:-15432}:5432"
+    networks:
+      - cloud-emulation
+    volumes:
+      - crm-local-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d CRMDatabase"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  crm-api-csharp:
+    profiles: [local]
+    build:
+      context: ../CrmApiCSharp
+    environment:
+      ConnectionStrings__CRMDatabaseMS: "Server=crm-database-ms,1433;Database=CRMDatabaseMS;User Id=sa;Password=${LOCAL_MSSQL_SA_PASSWORD:-CrmDev2026!Secure#Pass};Encrypt=True;TrustServerCertificate=True;"
+      ConnectionStrings__CRMDatabasePG: "Host=crm-database-pg;Port=5432;Database=CRMDatabase;Username=${LOCAL_POSTGRES_USER:-postgres};Password=${LOCAL_POSTGRES_PASSWORD:-postgres};"
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${LOCAL_CSHARP_API_PORT:-8081}:8080"
+    networks:
+      - cloud-emulation
+    depends_on:
+      crm-database-ms:
+        condition: service_healthy
+      crm-database-pg:
+        condition: service_healthy
+
+  crm-api-kotlin:
+    profiles: [local]
+    build:
+      context: ../CrmApiKotlinSpringBoot
+    environment:
+      # Same connection strings as the C# API; Spring binds them as ConnectionStrings.CRMDatabase{MS,PG}
+      CONNECTIONSTRINGS_CRMDATABASEMS: "Server=crm-database-ms,1433;Database=CRMDatabaseMS;User Id=sa;Password=${LOCAL_MSSQL_SA_PASSWORD:-CrmDev2026!Secure#Pass};Encrypt=True;TrustServerCertificate=True;"
+      CONNECTIONSTRINGS_CRMDATABASEPG: "Host=crm-database-pg;Port=5432;Database=CRMDatabase;Username=${LOCAL_POSTGRES_USER:-postgres};Password=${LOCAL_POSTGRES_PASSWORD:-postgres};"
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${LOCAL_KOTLIN_API_PORT:-8082}:8080"
+    networks:
+      - cloud-emulation
+    depends_on:
+      crm-database-ms:
+        condition: service_healthy
+      crm-database-pg:
+        condition: service_healthy

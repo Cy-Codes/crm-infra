@@ -63,6 +63,14 @@ Per-service `.env.example` files in `CrmApiCSharp/` and `CrmApiKotlinSpringBoot/
 ./crm-infra/scripts/down.sh local
 ```
 
+Reads (`GET`) are anonymous; create/update need the `user` or `admin` role and delete needs `admin` (see ADR 14). Mint a local-development token for manual calls (the `--bruno` smoke run mints its own):
+
+```bash
+curl -X POST http://localhost:8081/api/pg/v1/hubspot/companies \
+  -H "Authorization: Bearer $(./crm-infra/scripts/dev-token.sh user)" \
+  -H "Content-Type: application/json" -d '{"name":"Acme"}'
+```
+
 Each permutation gets its own Terraform workspace, so several can run side by side. Both emulators can also run at the same time: AWS on `:4566`/`4510-4559`, Azure on `:4567`/`4610-4659`.
 
 Quick checks once a stack is up:

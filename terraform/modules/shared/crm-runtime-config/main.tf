@@ -14,9 +14,10 @@
 
 locals {
   npgsql_ssl_modes = {
-    disable = "Disable"
-    prefer  = "Prefer"
-    require = "Require"
+    disable     = "Disable"
+    prefer      = "Prefer"
+    require     = "Require"
+    verify_full = "VerifyFull"
   }
 
   # Secret environment variable names per runtime and engine. Kept separate from
@@ -41,7 +42,7 @@ locals {
       "User Id=${var.databases.ms.username}",
       "Password=${var.databases.ms.password}",
       "Encrypt=True",
-      "TrustServerCertificate=True",
+      "TrustServerCertificate=${lookup(var.databases.ms, "trust_server_certificate", true)}",
       "",
     ]), null)
     pg = try(join(";", [
@@ -50,7 +51,7 @@ locals {
       "Database=${var.databases.pg.database_name}",
       "Username=${var.databases.pg.username}",
       "Password=${var.databases.pg.password}",
-      "SSL Mode=${local.npgsql_ssl_modes[var.databases.pg.ssl_mode]}",
+      "SSL Mode=${lookup(local.npgsql_ssl_modes, var.databases.pg.ssl_mode, "Prefer")}",
       "",
     ]), null)
   }

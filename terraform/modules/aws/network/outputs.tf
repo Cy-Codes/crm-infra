@@ -27,3 +27,8 @@ output "http_listener_port" {
   description = "Port of the public HTTP listeners."
   value       = local.http_listener_port
 }
+
+output "https_listener_port" {
+  description = "Port of the public HTTPS listeners."
+  value       = local.https_listener_port
+}

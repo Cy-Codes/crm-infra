@@ -25,7 +25,8 @@ locals {
 
   loopback_hosts         = ["localhost", "127.0.0.1"]
   docker_host_gateway    = "host.docker.internal"
-  postgres_ssl_mode      = "prefer"
+  postgres_ssl_mode      = var.localstack_enabled ? "prefer" : "require"
+  trust_server_cert      = var.localstack_enabled ? true : false
   password_length        = 24
   password_special_chars = "!#%*-_"
 
@@ -41,12 +42,13 @@ locals {
 
   databases = {
     for engine, db in module.database : engine => {
-      host          = db.host
-      port          = db.port
-      database_name = local.database_engines[engine].database_name
-      username      = var.db_admin_username
-      password      = random_password.database[engine].result
-      ssl_mode      = local.postgres_ssl_mode
+      host                     = db.host
+      port                     = db.port
+      database_name            = local.database_engines[engine].database_name
+      username                 = var.db_admin_username
+      password                 = random_password.database[engine].result
+      ssl_mode                 = local.postgres_ssl_mode
+      trust_server_certificate = local.trust_server_cert
     }
   }
 
@@ -106,11 +108,13 @@ module "database" {
   instance_class          = var.db_instance_class
   allocated_storage_gb    = var.db_allocated_storage_gb
   backup_retention_days   = var.db_backup_retention_days
+  skip_final_snapshot     = var.db_skip_final_snapshot
+  deletion_protection     = var.db_deletion_protection
   username                = var.db_admin_username
   password                = random_password.database[each.key].result
   subnet_ids              = module.network.public_subnet_ids
   security_group_ids      = [module.network.database_security_group_id]
-  publicly_accessible     = true
+  publicly_accessible     = var.db_publicly_accessible
 }
 
 module "database_schema" {
@@ -193,11 +197,14 @@ module "api_service" {
   memory                          = var.api_task_memory
   cpu_architecture                = local.cpu_architectures[var.image_platform]
   desired_count                   = var.api_desired_count
+  assign_public_ip                = var.api_assign_public_ip
+  certificate_arn                 = var.api_certificate_arn
   vpc_id                          = module.network.vpc_id
   subnet_ids                      = module.network.public_subnet_ids
   load_balancer_security_group_id = module.network.load_balancer_security_group_id
   api_security_group_id           = module.network.api_security_group_id
   listener_port                   = module.network.http_listener_port
+  https_listener_port             = module.network.https_listener_port
   log_retention_days              = var.log_retention_days
 
   depends_on = [module.database_schema]

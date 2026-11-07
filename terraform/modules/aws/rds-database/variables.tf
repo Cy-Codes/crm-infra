@@ -69,3 +69,15 @@ variable "publicly_accessible" {
   description = "Expose the instance on a public endpoint (required for the host-side schema migrator)."
   type        = bool
 }
+
+variable "skip_final_snapshot" {
+  description = "Skip final DB snapshot on deletion (true for local emulation/ephemeral environments)."
+  type        = bool
+  default     = true
+}
+
+variable "deletion_protection" {
+  description = "Enable deletion protection on the RDS instance."
+  type        = bool
+  default     = false
+}

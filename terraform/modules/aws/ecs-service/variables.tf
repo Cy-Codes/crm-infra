@@ -97,6 +97,30 @@ variable "listener_port" {
   type        = number
 }
 
+variable "https_listener_port" {
+  description = "Public HTTPS listener port of the load balancer."
+  type        = number
+  default     = 443
+}
+
+variable "certificate_arn" {
+  description = "ACM certificate ARN for HTTPS termination at the load balancer. If specified, an HTTPS listener is provisioned."
+  type        = string
+  default     = null
+}
+
+variable "ssl_policy" {
+  description = "SSL policy for HTTPS listener."
+  type        = string
+  default     = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+}
+
+variable "assign_public_ip" {
+  description = "Whether to assign a public IP to task network interfaces (true for public subnets, false for private subnets)."
+  type        = bool
+  default     = true
+}
+
 variable "log_retention_days" {
   description = "CloudWatch Logs retention in days."
   type        = number

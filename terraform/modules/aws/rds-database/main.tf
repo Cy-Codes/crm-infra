@@ -50,8 +50,8 @@ resource "aws_db_instance" "this" {
   publicly_accessible    = var.publicly_accessible
 
   backup_retention_period = var.backup_retention_days
-  skip_final_snapshot     = true
-  deletion_protection     = false
+  skip_final_snapshot     = var.skip_final_snapshot
+  deletion_protection     = var.deletion_protection
   apply_immediately       = true
 
   tags = { Name = "${var.name_prefix}-${var.engine}" }

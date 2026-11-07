@@ -137,6 +137,31 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
+    type = var.certificate_arn != null ? "redirect" : "forward"
+
+    dynamic "redirect" {
+      for_each = var.certificate_arn != null ? [1] : []
+      content {
+        port        = tostring(var.https_listener_port)
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+
+    target_group_arn = var.certificate_arn != null ? null : aws_lb_target_group.this.arn
+  }
+}
+
+resource "aws_lb_listener" "https" {
+  count = var.certificate_arn != null ? 1 : 0
+
+  load_balancer_arn = aws_lb.this.arn
+  port              = var.https_listener_port
+  protocol          = "HTTPS"
+  ssl_policy        = var.ssl_policy
+  certificate_arn   = var.certificate_arn
+
+  default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.this.arn
   }
@@ -152,7 +177,7 @@ resource "aws_ecs_service" "this" {
   network_configuration {
     subnets          = var.subnet_ids
     security_groups  = [var.api_security_group_id]
-    assign_public_ip = true
+    assign_public_ip = var.assign_public_ip
   }
 
   load_balancer {
@@ -161,5 +186,10 @@ resource "aws_ecs_service" "this" {
     container_port   = var.container_port
   }
 
-  depends_on = [aws_lb_listener.http, aws_iam_role_policy_attachment.execution]
+  depends_on = [
+    aws_lb_listener.http,
+    aws_lb_listener.https,
+    aws_iam_role_policy_attachment.execution,
+    aws_iam_role_policy.read_secrets
+  ]
 }

@@ -100,6 +100,18 @@ variable "api_desired_count" {
   default     = 1
 }
 
+variable "api_assign_public_ip" {
+  description = "Whether to assign public IPs to API task ENIs (true for public subnets, false for private subnets)."
+  type        = bool
+  default     = true
+}
+
+variable "api_certificate_arn" {
+  description = "ACM certificate ARN for HTTPS termination at the ALB on real AWS. Null for local HTTP-only."
+  type        = string
+  default     = null
+}
+
 variable "db_instance_class" {
   description = "RDS instance class for both engines."
   type        = string
@@ -118,6 +130,18 @@ variable "db_backup_retention_days" {
   default     = 0
 }
 
+variable "db_skip_final_snapshot" {
+  description = "Skip final DB snapshot on deletion (true for local emulation/ephemeral environments)."
+  type        = bool
+  default     = true
+}
+
+variable "db_deletion_protection" {
+  description = "Enable deletion protection on RDS instances."
+  type        = bool
+  default     = false
+}
+
 variable "postgres_engine_version" {
   description = "RDS PostgreSQL engine version."
   type        = string
@@ -128,6 +152,12 @@ variable "db_admin_username" {
   description = "Master user name of both RDS instances."
   type        = string
   default     = "crmadmin"
+}
+
+variable "db_publicly_accessible" {
+  description = "Whether RDS instances are publicly accessible (true for local emulation/direct migrator runs, false for private VPC deployments)."
+  type        = bool
+  default     = true
 }
 
 variable "database_admin_cidrs" {

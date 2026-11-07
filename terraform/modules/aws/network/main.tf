@@ -5,10 +5,11 @@
 # ============================================================================
 
 locals {
-  any_ipv4_cidr      = "0.0.0.0/0"
-  all_protocols      = "-1"
-  subnet_newbits     = 8
-  http_listener_port = 80
+  any_ipv4_cidr       = "0.0.0.0/0"
+  all_protocols       = "-1"
+  subnet_newbits      = 8
+  http_listener_port  = 80
+  https_listener_port = 443
 }
 
 data "aws_availability_zones" "available" {
@@ -60,13 +61,21 @@ resource "aws_route_table_association" "public" {
 
 resource "aws_security_group" "load_balancer" {
   name        = "${var.name_prefix}-alb"
-  description = "Public HTTP ingress to the CRM API load balancers"
+  description = "Public HTTP/HTTPS ingress to the CRM API load balancers"
   vpc_id      = aws_vpc.this.id
 
   ingress {
     description = "HTTP from anywhere"
     from_port   = local.http_listener_port
     to_port     = local.http_listener_port
+    protocol    = "tcp"
+    cidr_blocks = [local.any_ipv4_cidr]
+  }
+
+  ingress {
+    description = "HTTPS from anywhere"
+    from_port   = local.https_listener_port
+    to_port     = local.https_listener_port
     protocol    = "tcp"
     cidr_blocks = [local.any_ipv4_cidr]
   }

@@ -21,7 +21,8 @@ locals {
 
   loopback_hosts         = ["localhost", "127.0.0.1"]
   docker_host_gateway    = "host.docker.internal"
-  postgres_ssl_mode      = "require"
+  postgres_ssl_mode      = var.localstack_enabled ? "prefer" : "require"
+  trust_server_cert      = var.localstack_enabled ? true : false
   minimum_tls_version    = "1.2"
   suffix_length          = 6
   password_length        = 24
@@ -41,12 +42,13 @@ locals {
 
   databases = {
     for engine, endpoint in local.database_endpoints : engine => {
-      host          = endpoint.host
-      port          = endpoint.port
-      database_name = local.database_engines[engine].database_name
-      username      = var.db_admin_username
-      password      = random_password.database[engine].result
-      ssl_mode      = local.postgres_ssl_mode
+      host                     = endpoint.host
+      port                     = endpoint.port
+      database_name            = local.database_engines[engine].database_name
+      username                 = var.db_admin_username
+      password                 = random_password.database[engine].result
+      ssl_mode                 = local.postgres_ssl_mode
+      trust_server_certificate = local.trust_server_cert
     }
   }
 
